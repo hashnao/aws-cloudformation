@@ -1,0 +1,423 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "AWS CloudFormation Template IAM Groups and Policies",
+
+  "Parameters" : {
+    "Password": {
+      "NoEcho": "true",
+      "Type": "String",
+      "Description" : "Password for administrator",
+      "MinLength": "1",
+      "MaxLength": "41",
+      "AllowedPattern" : "[a-zA-Z0-9]*",
+      "ConstraintDescription" : "must contain only alphanumeric characters."
+    }
+  },
+
+  "Resources" : {
+    "administrator" : {
+      "Type" : "AWS::IAM::User",
+      "Properties" : {
+        "LoginProfile": {
+          "Password": { "Ref" : "Password" }
+        }
+      }
+    },
+    "GroupAccounting" : {
+      "Type" : "AWS::IAM::Group"
+    },
+    "GroupAdmin" : {
+      "Type" : "AWS::IAM::Group"
+    },
+    "GroupAudit" : {
+      "Type" : "AWS::IAM::Group"
+    },
+    "GroupOperation" : {
+      "Type" : "AWS::IAM::Group"
+    },
+    "GroupSystemIntegration" : {
+      "Type" : "AWS::IAM::Group"
+    },
+   "AddGroupAdmin" : {
+     "Type": "AWS::IAM::UserToGroupAddition",
+     "Properties": {
+       "GroupName": { "Ref" : "GroupAdmin" },
+       "Users": [ { "Ref" : "administrator" } ]
+     }
+   },
+    "RoleMonitoring": {
+       "Type": "AWS::IAM::Role",
+       "Properties": {
+          "AssumeRolePolicyDocument": {
+             "Version" : "2012-10-17",
+             "Statement": [ {
+                "Effect": "Allow",
+                "Principal": {
+                   "Service": [ "ec2.amazonaws.com" ]
+                },
+                "Action": [ "sts:AssumeRole" ]
+             } ]
+          },
+          "Path": "/"
+       }
+    },
+    "RoleEBSSnapshot": {
+       "Type": "AWS::IAM::Role",
+       "Properties": {
+          "AssumeRolePolicyDocument": {
+             "Version" : "2012-10-17",
+             "Statement": [ {
+                "Effect": "Allow",
+                "Principal": {
+                   "Service": [ "ec2.amazonaws.com" ]
+                },
+                "Action": [ "sts:AssumeRole" ]
+             } ]
+          },
+          "Path": "/"
+       }
+    },
+    "PolicyAccountActivity" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "AccountActivity",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ "aws-portal:ViewBilling" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupAccounting" }]
+      }
+    },
+    "PolicyReportAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "ReportAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ "aws-portal:ViewUsage" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupAccounting" }]
+      }
+    },
+    "PolicyCloudTrailAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "CloudTrailAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Action": [ "s3:GetObject" ],
+            "Resource": "arn:aws:s3:::*",
+            "Effect": "Allow"
+          }, {
+            "Action": [
+              "cloudtrail:DescribeTrails",
+              "cloudtrail:GetTrailStatus",
+              "s3:ListAllMyBuckets"
+            ],
+              "Resource": "*",
+              "Effect": "Allow"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupAudit" }]
+      }
+    },
+    "PolicyReadOnlyAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "ReadOnlyAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+              "autoscaling:Describe*", 
+              "cloudformation:DescribeStacks", 
+              "cloudformation:DescribeStackEvents", 
+              "cloudformation:DescribeStackResources", 
+              "cloudformation:GetTemplate", 
+              "cloudformation:List*", 
+              "cloudfront:Get*", 
+              "cloudfront:List*", 
+              "cloudwatch:Describe*", 
+              "cloudwatch:Get*", 
+              "cloudwatch:List*", 
+              "ec2:Describe*", 
+              "ec2:RebootInstances", 
+              "ec2:StartInstances", 
+              "ec2:StopInstances", 
+              "elasticloadbalancing:Describe*", 
+              "route53:Get*", 
+              "route53:List*", 
+              "rds:Describe*", 
+              "rds:ListTagsForResource", 
+              "s3:Get*", 
+              "s3:List*"
+            ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupOperation" }]
+      }
+    },
+    "PolicyAWSSupportAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "AWSSupportAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ "support:*" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupOperation" }]
+      }
+    },
+    "PolicyELBLimitedOperation" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "ELBLimitedOperation",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ 
+              "elasticloadbalancing:ConfigureHealthCheck",
+              "elasticloadbalancing:CreateLoadBalancerListeners",
+              "elasticloadbalancing:DeleteLoadBalancerListeners",
+              "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+              "elasticloadbalancing:Describe*",
+              "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+            ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupOperation" }]
+      }
+    },
+    "PolicyAutoScalingLimitedOperation" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "AutoScaling-Limited-Operation",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+              "autoscaling:Describe*", 
+              "autoscaling:ExecutePolicy", 
+              "autoscaling:PutScalingPolicy", 
+              "autoscaling:PutScheduledUpdateGroupAction", 
+              "autoscaling:ResumeProcesses", 
+              "autoscaling:Set*", 
+              "autoscaling:SuspendProcesses", 
+              "autoscaling:UpdateAutoScalingGroup"
+            ], 
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupOperation" }]
+      }
+    },
+    "PolicyRoute53LimitedOperation" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "Route53LimitedOperation",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+              "route53:Get*",
+              "route53:List*",
+              "route53:ChangeResourceRecordSets"
+            ], 
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupOperation" }]
+      }
+    },
+    "PolicyRDSLimitedOperation" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "RDSLimitedOperation",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ 
+              "rds:Describe*",
+              "rds:ListTagsForResource",
+              "rds:RebootDBInstance",
+              "rds:RestoreDBInstanceFromDBSnapshot",
+              "rds:RestoreDBInstanceToPointInTime",
+              "ec2:DescribeAvailabilityZones",
+              "ec2:DescribeVpcs",
+              "ec2:DescribeAccountAttributes",
+              "ec2:DescribeSecurityGroups"
+            ], 
+            "Resource": "*"
+          }, {
+            "Effect": "Allow",
+            "Action": [ "cloudwatch:GetMetricStatistics" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupOperation" }]
+      }
+    },
+    "PolicyPowerUserAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "PowerUserAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "NotAction": "iam:*", 
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupSystemIntegration" }]
+      }
+    },
+    "PolicyDenyAccountUsageReportAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "DenyAccountUsageReportAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Deny",
+            "Action": [ "aws-portal:ViewUsage" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupSystemIntegration" }]
+      }
+    },
+    "PolicyDenyAccountActivityAccess" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "DenyAccountActivityAccess",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Deny",
+            "Action": [ "aws-portal:ViewBilling" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupSystemIntegration" }]
+      }
+    },
+    "PolicyAdmin" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "Admin",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ "*" ],
+            "Resource": "*"
+          }]
+        },
+        "Groups": [{ "Ref" : "GroupAdmin" }]
+      }
+    },
+    "PolicyMonitoring" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "Monitoring",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ "*" ],
+            "Action": [
+                "autoscaling:Describe*",
+                "cloudfront:Get*",
+                "cloudfront:List*",
+                "cloudwatch:Describe*",
+                "cloudwatch:Get*",
+                "cloudwatch:List*",
+                "ec2:Describe*",
+                "elasticache:Describe*",
+                "elasticbeanstalk:Check*",
+                "elasticbeanstalk:Describe*",
+                "elasticbeanstalk:List*",
+                "elasticbeanstalk:RequestEnvironmentInfo",
+                "elasticbeanstalk:RetrieveEnvironmentInfo",
+                "elasticloadbalancing:Describe*",
+                "route53:Get*",
+                "route53:List*",
+                "rds:Describe*",
+                "rds:ListTagsForResource",
+                "s3:Get*",
+                "s3:List*"
+            ],
+            "Resource": "*"
+          }]
+        },
+        "Roles": [{ "Ref" : "RoleMonitoring" }]
+      }
+    },
+    "PolicyEBSSnapshot" : {
+      "Type" : "AWS::IAM::Policy",
+      "Properties" : {
+        "PolicyName" : "EBSSnapshot",
+        "PolicyDocument" : {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+                "ec2:Describe*",
+                "ec2:*Tags",
+                "ec2:CopySnapshot",
+                "ec2:CreateSnapshot",
+                "ec2:DeleteSnapshot",
+                "ec2:ModifySnapshotAttribute",
+                "ec2:ResetSnapshotAttribute"
+            ],
+            "Resource": "*"
+          }]
+        },
+        "Roles": [{ "Ref" : "RoleEBSSnapshot" }]
+      }
+    },
+    "IAMInstanceProfileMonitoring": {  
+      "Type": "AWS::IAM::InstanceProfile",  
+      "Properties": {
+        "Path": "/", 
+        "Roles": [ { "Ref": "RoleMonitoring" } ]
+      }
+    },
+    "IAMInstanceProfileEBSSnapshot": {  
+      "Type": "AWS::IAM::InstanceProfile",  
+      "Properties": {
+        "Path": "/", 
+        "Roles": [ { "Ref": "RoleEBSSnapshot" } ]
+      }
+    }
+  },
+
+  "Outputs" : {
+    "GroupAccounting" : {
+      "Value" : { "Ref": "GroupAccounting" },
+      "Description" : "Accouting Group"
+    },
+    "GroupAdmin" : {
+      "Value" : { "Ref": "GroupAdmin" },
+      "Description" : "Admin Group"
+    },
+    "GroupAudit" : {
+      "Value" : { "Ref": "GroupAudit" },
+      "Description" : "Audit Group"
+    },
+    "GroupOperation" : {
+      "Value" : { "Ref": "GroupOperation" },
+      "Description" : "Operation Group"
+    },
+    "GroupSystemIntegration" : {
+      "Value" : { "Ref": "GroupSystemIntegration" },
+      "Description" : "SystemIntegration Group"
+    }
+  }
+}

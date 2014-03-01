@@ -1,0 +1,564 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "EC2 component for Single Plan",
+  "Description": "CloudFormation Template for EC2 component of Single Plan",
+  "Parameters": {
+
+    "CustomerName": {
+      "Description": "The name of the Customer for the VPC",
+      "Type": "String"
+    },
+
+    "VPCCIDR": {
+      "Description": "VPC CIDR (X.X.0.0/16)",
+      "Type": "String"
+    },
+
+    "VPC" : {
+      "Description" : "VPC ID",
+      "Type": "String"
+    },
+
+    "SubnetPublicVarA00" : {
+      "Description" : "Subnet ID",
+      "Type": "String"
+    },
+
+    "SubnetPublicVarC01" : {
+      "Description" : "Subnet ID",
+      "Type": "String"
+    },
+
+    "SubnetPublicVarA02" : {
+      "Description" : "Subnet ID",
+      "Type": "String"
+    },
+
+    "SubnetPublicVarC03" : {
+      "Description" : "Subnet ID",
+      "Type": "String"
+    },
+
+    "SubnetPublicFixA08" : {
+      "Description" : "Subnet ID",
+      "Type": "String"
+    },
+
+    "SubnetPublicFixC09" : {
+      "Description" : "Subnet ID",
+      "Type": "String"
+    },
+
+    "InstanceTypeWeb": {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String"
+    },
+
+    "InstanceTypeDB": {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String"
+    },
+
+    "VolumeSizeWeb" : {
+      "Description" : "Volume Size for Web Server Contents Device",
+      "Type" : "Number"
+    },
+
+    "VolumeSizeDB" : {
+      "Description" : "Volume Size for Web Server Contents Device",
+      "Type" : "Number"
+    },
+
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "String"
+    },
+
+    "SecurityGroupCidrCustomer" : {
+      "Description": "Customer Gateway",
+      "Type": "String"
+    },
+
+    "SecurityGroupCidrOffice" : {
+      "Description": "Office Gateway",
+      "Type": "String"
+    },
+
+    "SecurityGroupCidrMonitor" : {
+      "Description": "Monitoring Server",
+      "Type": "String"
+    },
+
+    "DBRootPassword": {
+      "Description" : "Root password for MySQL",
+      "Type": "String"
+    }
+  }, 
+
+
+  "Mappings": {
+    "AvailabilityZoneMap": {
+       "ap-northeast-1": { "AZa": "ap-northeast-1a", "AZb": "ap-northeast-1b", "AZc": "ap-northeast-1c" }
+    },
+
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "m3.xlarge"   : { "Arch" : "64" },
+      "m3.2xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64HVM" },
+      "cc2.8xlarge" : { "Arch" : "64HVM" },
+      "cg1.4xlarge" : { "Arch" : "64HVM" }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "ap-northeast-1" : { "32" : "ami-0b13700a", "64" : "ami-0d13700c", "64HVM" : "NOT_YET_SUPPORTED" }
+    }
+  },
+
+  "Resources": {
+    "SecurityGroupELB": {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Security Group ELB",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+            { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80", "CidrIp": "0.0.0.0/0" },
+            { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443", "CidrIp": "0.0.0.0/0" }
+        ],
+        "SecurityGroupEgress" : [
+            { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80", "CidrIp": "0.0.0.0/0" },
+            { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443", "CidrIp": "0.0.0.0/0" }
+        ]
+      }
+    },
+
+    "SecurityGroupBase": {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Security Group Base",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "SecurityGroupELB" } },
+          { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443", "SourceSecurityGroupId" : { "Ref" : "SecurityGroupELB" } },
+          { "IpProtocol" : "-1",  "CidrIp": { "Fn::Join": [ "", [ { "Ref": "VPCCIDR" }, ".0.0/16" ] ]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "-1", "CidrIp": "0.0.0.0/0" }
+        ]
+      }
+    },
+
+    "SecurityGroupCustomer": {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Security Group Customer",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22", "CidrIp" : { "Ref" : "SecurityGroupCidrCustomer" }}
+        ]
+      }
+    },
+
+    "SecurityGroupBBT": {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Security Group BBT",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : { "Ref" : "SecurityGroupCidrOffice" }},
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : { "Ref" : "SecurityGroupCidrOffice" }},
+          { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443",  "CidrIp" : { "Ref" : "SecurityGroupCidrOffice" }}       
+        ]
+      }
+    },
+
+    "SecurityGroupMonitor": {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Security Group for Monitoring Server",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : { "Ref" : "SecurityGroupCidrMonitor" }},
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : { "Ref" : "SecurityGroupCidrMonitor" }},
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : { "Ref" : "SecurityGroupCidrMonitor" }},
+          { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443",  "CidrIp" : { "Ref" : "SecurityGroupCidrMonitor" }},
+          { "IpProtocol" : "tcp", "FromPort" : "3306",  "ToPort" : "3306",  "CidrIp" : { "Ref" : "SecurityGroupCidrMonitor" }}
+        ]
+      }
+    },
+
+    "ElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "Subnets" : [
+          { "Ref" : "SubnetPublicVarA00" },
+          { "Ref" : "SubnetPublicVarC01" }
+        ],
+        "HealthCheck": {
+          "Interval": "10",
+          "Target": "HTTP:80/index.html",
+          "Timeout": "5",
+          "HealthyThreshold": "5",
+          "UnhealthyThreshold": "3"
+        },
+        "SecurityGroups": [
+          { "Ref": "SecurityGroupELB" }
+        ],
+        "Instances": [
+          { "Ref": "WebServer01" }
+        ],
+        "Listeners": [
+          { "InstancePort": "80", "LoadBalancerPort": "80", "Protocol": "HTTP", "InstanceProtocol": "HTTP" }
+        ]
+      }
+    },
+
+    "IPAddressWebServer01" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "WebServer01" }
+      }
+    },
+
+    "IPAddressDBServer01" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "DBServer01" }
+      }
+    },
+
+    "WebServer01": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "configSets" : {
+            "orderby" : [ "install_package", "create_user" ]
+          },
+          "install_package" : {
+            "packages" : {
+              "yum" : {
+                "gcc" : [], "gcc-c++" : [], "make" : [], "wget" : [], "unzip" : [], "git" : [], "ntp" : [], "openssl" : [],
+                "mod_ssl" : [], "httpd" : [], "httpd-devel" : [], "httpd-tools": [],
+                "php" : [], "php-bcmath" : [], "php-cli" : [], "php-devel" : [], "php-gd" : [],  "php-ldap" : [], "php-mbstring" : [], "php-mysql" : [], "php-pdo" : [], "php-xml" : [], "php-pear" : [],
+                "sendmail" : [], "postfix" : []
+              }
+            },
+            "services" : {
+              "sysvinit" : {
+                "httpd" : { "enabled" : "true", "ensureRunning" : "true" },
+                "ntpd" : { "enabled" : "true", "ensureRunning" : "true" },
+                "ip6tables" : { "enabled" : "false", "ensureRunning" : "false" },
+                "iptables" : { "enabled" : "false", "ensureRunning" : "false" },
+                "sendmail" : { "enabled" : "false", "ensureRunning" : "false" },
+                "postfix" : { "enabled" : "false", "ensureRunning" : "false" }
+              }
+            }
+          },
+          "create_user" : {
+            "files" : {
+              "/tmp/authorized_keys" : {
+                "source" : "https://github.com/hashnao/aws-cloudformation/EC2/authorized_keys",
+                "mode"  : "000600",
+                "owner" : "root",
+                "group" : "root"
+              },
+              "/home/ec2-user/createuser" : {
+                "content" : { "Fn::Join" : ["", [
+                  "#!/bin/bash -v\n",
+                  "#Install and run Redmine\n",
+                  "user=opuser\n",
+                  "home=/home/opuser\n",
+                  "/usr/sbin/useradd -s /bin/bash $user\n",
+                  "su -l $user -c \"mkdir -p -m 700 ~/.ssh\"\n",
+                  "mv -f /tmp/authorized_keys $home/.ssh\n",
+                  "chown $user:$user $home/.ssh/authorized_keys\n",
+                  "chmod 600 $home/.ssh/authorized_keys\n"
+                ]]},
+                "mode"  : "000755",
+                "owner" : "root",
+                "group" : "root"
+              }
+            },
+            "commands" : {
+              "createuser" : {
+                "command" : "/home/ec2-user/createuser > /var/log/create_user.log 2>&1"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId" : {
+          "Fn::FindInMap" : [
+            "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceTypeWeb" }, "Arch" ] }
+          ]
+        },
+        "InstanceType": { "Ref" : "InstanceTypeWeb" },
+        "BlockDeviceMappings" : [ {
+          "DeviceName" : "/dev/sdh",
+          "Ebs" : {
+            "VolumeSize" : { "Ref": "VolumeSizeWeb" },
+            "DeleteOnTermination" : "False"
+          }
+        } ],
+        "DisableApiTermination": "FALSE",
+        "KeyName": { "Ref": "KeyName" },
+        "Monitoring": "false",
+        "NetworkInterfaces": [ {   
+          "DeleteOnTermination": "true",
+          "Description": "Primary network interface",
+          "DeviceIndex": 0,
+          "SubnetId": { "Ref" : "SubnetPublicFixA08" },
+          "GroupSet": [
+            { "Ref": "SecurityGroupBase" },
+            { "Ref": "SecurityGroupCustomer" },
+            { "Ref": "SecurityGroupBBT" },
+            { "Ref": "SecurityGroupMonitor" }
+          ]   
+        } ],
+        "Tags": [ {
+          "Key": "Role", "Value" : "WeB"
+        } ],
+        "UserData" : {
+          "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -v\n",
+
+          "# Helper function\n",
+          "function error_exit\n",
+          "{\n",
+          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitHandleWeb01" }, "'\n",
+          "  exit 1\n",
+          "}\n",
+
+          "# Install LAMP packages\n",
+          "  /opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r WebServer01 -c orderby",
+          "  --region ", { "Ref" : "AWS::Region" }, " || error_exit 'Failed to run cfn-init'\n",
+
+          "# Wait for the EBS volume to show up\n",
+          "device=($(ls /dev/xvd* | sort -r))\n",
+          "mount_dir=/var/www/html\n",
+          "while [ ! -e \"${device[0]}\" ]; do echo Waiting for EBS volume to attach; sleep 5; done\n",
+
+          "# Format the EBS volume and mount it\n",
+          "mkdir -p \"$mount_dir\" \n",
+          "/sbin/mkfs -t ext4 \"${device[0]}\" \n",
+          "echo \"${device[0]}\" \"$mount_dir\" ext4  defaults 0 2 >> /etc/fstab \n",
+          "mount -a\n",
+          "/sbin/resize2fs \"${device[0]}\" \n",
+          "chown -R apache:apache \"$mount_dir\" \n",
+
+          "# All is well so signal success\n",
+          "  /opt/aws/bin/cfn-signal -e 0 -r \"Cloud-Init setup completed\" '", { "Ref" : "WaitHandleWeb01" }, "'\n"
+          ] ] }
+        }
+      }
+    },
+
+    "WaitHandleWeb01" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {
+      }
+    },
+
+    "WaitConditionWeb01" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "WebServer01",
+      "Metadata" : {
+        "Comment1" : "Note that the WaitCondition is dependent on creating EC2 instance"
+      },
+      "Properties" : {
+        "Handle" : { "Ref" : "WaitHandleWeb01" },
+        "Timeout" : "300"
+      }
+    },
+
+    "DBServer01": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "configSets" : {
+            "orderby" : [ "install_package", "create_user" ]
+          },
+          "install_package" : {
+            "packages" : {
+              "yum" : {
+                "gcc" : [], "gcc-c++" : [], "make" : [], "wget" : [], "unzip" : [], "git" : [], "ntp" : [], "openssl" : [],
+                "mysql" : [], "mysql-devel" : [], "mysql-embedded-devel" : [], "mysql-libs" : [], "mysql-server" : [],
+                "sendmail" : [], "postfix" : []
+              }
+            },
+            "services" : {
+              "sysvinit" : {
+                "mysqld" : { "enabled" : "true", "ensureRunning" : "true" },
+                "ntpd" : { "enabled" : "true", "ensureRunning" : "true" },
+                "ip6tables" : { "enabled" : "false", "ensureRunning" : "false" },
+                "iptables" : { "enabled" : "false", "ensureRunning" : "false" },
+                "sendmail" : { "enabled" : "false", "ensureRunning" : "false" },
+                "postfix" : { "enabled" : "false", "ensureRunning" : "false" }
+              }
+            }
+          },
+          "create_user" : {
+            "files" : {
+              "/tmp/authorized_keys" : {
+                "source" : "https://github.com/hashnao/aws-cloudformation/EC2/authorized_keys",
+                "mode"  : "000600",
+                "owner" : "root",
+                "group" : "root"
+              },
+              "/tmp/createuser" : {
+                "content" : { "Fn::Join" : ["", [
+                  "#!/bin/bash -v\n",
+                  "#Install and run Redmine\n",
+                  "user=opuser\n",
+                  "home=/home/opuser\n",
+                  "/usr/sbin/useradd -s /bin/bash $user\n",
+                  "su -l $user -c \"mkdir -p -m 700 ~/.ssh\"\n",
+                  "mv -f /tmp/authorized_keys $home/.ssh\n",
+                  "chown $user:$user $home/.ssh/authorized_keys\n",
+                  "chmod 600 $home/.ssh/authorized_keys\n"
+                ]]},
+                "mode"  : "000755",
+                "owner" : "root",
+                "group" : "root"
+              }
+            },
+            "commands" : {
+              "createuser" : {
+                "command" : "/tmp/createuser > /var/log/create_user.log 2>&1"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId" : {
+          "Fn::FindInMap" : [
+            "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceTypeWeb" }, "Arch" ] } 
+          ]
+        },
+        "InstanceType": { "Ref" : "InstanceTypeDB" },
+        "BlockDeviceMappings" : [ {
+          "DeviceName" : "/dev/sdh",
+          "Ebs" : {
+            "VolumeSize" : { "Ref": "VolumeSizeDB" },
+            "DeleteOnTermination" : "False"
+          }
+        } ],
+        "DisableApiTermination": "FALSE",
+        "KeyName": { "Ref": "KeyName" },
+        "Monitoring": "false",
+        "NetworkInterfaces": [ {   
+          "DeleteOnTermination": "true",
+          "Description": "Primary network interface",
+          "DeviceIndex": 0,
+          "SubnetId": { "Ref" : "SubnetPublicFixA08" },
+          "GroupSet": [
+            { "Ref": "SecurityGroupBase" },
+            { "Ref": "SecurityGroupCustomer" },
+            { "Ref": "SecurityGroupBBT" },
+            { "Ref": "SecurityGroupMonitor" }
+          ]   
+        } ],
+        "Tags": [ {
+          "Key": "Role", "Value" : "DB"
+        } ],
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -v\n",
+
+          "# Helper function\n",
+          "function error_exit\n",
+          "{\n",
+          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitHandleDB01" }, "'\n",
+          "  exit 1\n",
+          "}\n",
+
+          "# Install MySQL packages\n",
+          "  /opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r DBServer01 -c orderby ",
+          "  --region ", { "Ref" : "AWS::Region" }, " || error_exit 'Failed to run cfn-init'\n",
+
+          "# Wait for the EBS volume to show up,  Format the EBS volume and mount it\n",
+          "device=($(ls /dev/xvd* | sort -r))\n",
+          "mount_dir=/var/lib/mysql\n",
+          "while [ ! -e \"${device[0]}\" ]; do echo Waiting for EBS volume to attach; sleep 5; done\n",
+          "rm -rf \"$mount_dir\" ; mkdir -p \"$mount_dir\" \n",
+          "/sbin/mkfs -t ext4 \"${device[0]}\" \n",
+          "echo \"${device[0]}\" \"$mount_dir\" ext4  defaults 0 2 >> /etc/fstab \n",
+          "mount -a ; rm -rf \"$mount_dir/lost+found\"\n",
+          "/sbin/resize2fs \"${device[0]}\" \n",
+          "service mysqld restart || error_exit 'Failed to start mysqld'\n",
+          "mysqladmin -f -u root drop test ; mysqladmin -u root password '", { "Ref" : "DBRootPassword" }, "' || error_exit 'Failed to initialize root password'\n",
+
+          "# All is well so signal success\n",
+          "  /opt/aws/bin/cfn-signal -e 0 -r \"Cloud-Init setup completed\" '", { "Ref" : "WaitHandleDB01" }, "'\n"
+        ]]}}
+      }
+    },
+
+    "WaitHandleDB01" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {
+      }
+    },
+
+    "WaitConditionDB01" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "DBServer01",
+      "Metadata" : {
+        "Comment1" : "Note that the WaitCondition is dependent on creating EC2 instance"
+      },
+      "Properties" : {
+        "Handle" : { "Ref" : "WaitHandleDB01" },
+        "Timeout" : "600"
+      }
+    }
+  },
+
+  "Outputs": {
+    "ELBPublicDNS" : {
+      "Description": "ELBPublicDNS",
+      "Value": { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}
+    },
+
+    "IPAddressWebServer01" : {
+      "Description": "IPAddressWebServer01",
+      "Value": { "Ref": "IPAddressWebServer01" }
+    },
+
+    "IPAddressDBServer01" : {
+      "Description": "IPAddressDBServer01",
+      "Value": { "Ref": "IPAddressDBServer01" }
+    },
+
+    "WebServer01" : {
+      "Description": "WebServer01",
+      "Value": { "Ref": "WebServer01" }
+    },
+
+    "DBServer01" : {
+      "Description": "DBServer01",
+      "Value": { "Ref": "DBServer01" }
+    },
+
+    "WaitConditionWeb01Data" : {
+      "Value" : { "Fn::GetAtt" : [ "WaitConditionWeb01", "Data" ]},
+      "Description" : "The data passed back as part of signalling the WaitCondition"
+    },
+
+    "WaitConditionDB01Data" : {
+      "Value" : { "Fn::GetAtt" : [ "WaitConditionDB01", "Data" ]},
+      "Description" : "The data passed back as part of signalling the WaitCondition"
+    }
+  }
+}

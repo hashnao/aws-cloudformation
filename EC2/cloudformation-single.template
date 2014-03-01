@@ -1,0 +1,306 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudFormation Template for Single Plan",
+  "Mappings": {
+  },
+
+
+  "Parameters": {
+    "CustomerName": {
+      "Description": "The name of the Customer for the VPC",
+      "Type": "String",
+      "Default": "customer"
+    },
+
+    "VPCCIDR": {
+      "AllowedPattern": "^(\\d|[01]?\\d\\d|2[0-4]\\d|25[0-5])\\.(\\d|[01]?\\d\\d|2[0-4]\\d|25[0-5])",   
+      "Description": "VPC CIDR (X.X.0.0/16)",
+      "Type": "String",
+      "Default": "10.0"
+    },
+
+    "VPC" : {
+      "AllowedPattern" : "^vpc-[0-9a-z]{8}",
+      "Description" : "VPC ID",
+      "Type": "String",
+      "Default" : "vpc-xxxxxxxx"
+    },
+
+    "SubnetPublicVarA00" : {
+      "AllowedPattern" : "^subnet-[0-9a-z]{8}",
+      "Description" : "Subnet ID",
+      "Type": "String",
+      "Default" : "subnet-xxxxxxxx"
+    },
+
+    "SubnetPublicVarC01" : {
+      "AllowedPattern" : "^subnet-[0-9a-z]{8}",
+      "Description" : "Subnet ID",
+      "Type": "String",
+      "Default" : "subnet-xxxxxxxx"
+    },
+
+    "SubnetPublicVarA02" : {
+      "AllowedPattern" : "^subnet-[0-9a-z]{8}",
+      "Description" : "Subnet ID",
+      "Type": "String",
+      "Default" : "subnet-xxxxxxxx"
+    },
+
+    "SubnetPublicVarC03" : {
+      "AllowedPattern" : "^subnet-[0-9a-z]{8}",
+      "Description" : "Subnet ID",
+      "Type": "String",
+      "Default" : "subnet-xxxxxxxx"
+    },
+
+    "SubnetPublicFixA08" : {
+      "AllowedPattern" : "^subnet-[0-9a-z]{8}",
+      "Description" : "Subnet ID",
+      "Type": "String",
+      "Default" : "subnet-xxxxxxxx"
+    },
+
+    "SubnetPublicFixC09" : {
+      "AllowedPattern" : "^subnet-[0-9a-z]{8}",
+      "Description" : "Subnet ID",
+      "Type": "String",
+      "Default" : "subnet-xxxxxxxx"
+    },
+
+    "InstanceTypeWeb": {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "t1.micro",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "InstanceTypeDB": {
+      "Description" : "DBServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "t1.micro",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "VolumeSizeWeb" : {
+      "Description" : "Volume Size for Web Server Contents Device",
+      "Type" : "Number",
+      "Default" : "10",
+      "MinValue" : "5",
+      "MaxValue" : "1024",
+      "ConstraintDescription" : "must be between 5 and 1024 Gb."
+    },
+
+    "VolumeSizeDB" : {
+      "Description" : "Volume Size for DB Server Dabatabse Device",
+      "Type" : "Number",
+      "Default" : "10",
+      "MinValue" : "5",
+      "MaxValue" : "1024",
+      "ConstraintDescription" : "must be between 5 and 1024 Gb."
+    },
+
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern" : "[\\x20-\\x7E]*",
+      "Default" : "bbt-default",
+      "ConstraintDescription" : "can contain only ASCII characters."
+    },
+
+    "SecurityGroupCidrCustomer" : {
+      "Description": "Customer's Gateway",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    },
+
+    "SecurityGroupCidrOffice" : {
+      "Description": "Compnay's Gateway",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "211.14.2.57/32",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    },
+
+    "SecurityGroupCidrMonitor" : {
+      "Description": "Monitoring Server",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "180.214.32.133/32",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    },
+
+    "DBRootPassword": {
+      "NoEcho": "true",
+      "Description" : "Root password for MySQL",
+      "Type": "String",
+      "Default": "mysql00",
+      "MinLength": "1",
+      "MaxLength": "41",
+      "AllowedPattern" : "[a-zA-Z0-9]*",
+      "ConstraintDescription" : "must contain only alphanumeric characters."
+    }
+  },
+
+
+  "Resources": {
+    "CloudFormationStackVPC": {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+        "TemplateURL" : "https://raw.github.com/hashnao/aws-cloudformation/master/EC2/vpc.template",
+        "TimeoutInMinutes" : "3",
+        "Parameters" : {
+          "CustomerName" : { "Ref": "CustomerName" },
+          "VPCCIDR" : { "Ref": "VPCCIDR" }
+        }
+      }
+    },
+
+    "CloudFormationStackEC2": {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+        "TemplateURL" : "https://raw.github.com/hashnao/aws-cloudformation/master/EC2/ec2-single.template",
+        "Parameters" : {
+          "CustomerName" : { "Ref": "CustomerName" },
+          "VPCCIDR" : { "Ref": "VPCCIDR" },
+          "VPC" : { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.VPCId" ] },
+          "InstanceTypeWeb" : { "Ref": "InstanceTypeWeb" },
+          "InstanceTypeDB" : { "Ref": "InstanceTypeDB" },
+          "KeyName" : { "Ref": "KeyName" },
+          "SubnetPublicVarA00": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarA00" ] },
+          "SubnetPublicVarC01": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarC01" ] },
+          "SubnetPublicVarA02": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarA02" ] },
+          "SubnetPublicVarC03": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarC03" ] },
+          "SubnetPublicFixA08": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicFixA08" ] },
+          "SubnetPublicFixC09": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicFixC09" ] },
+          "VolumeSizeWeb" : { "Ref": "VolumeSizeWeb" },
+          "VolumeSizeDB" : { "Ref": "VolumeSizeDB" },
+          "SecurityGroupCidrCustomer" : { "Ref": "SecurityGroupCidrCustomer" },
+          "SecurityGroupCidrOffice" : { "Ref": "SecurityGroupCidrOffice" },
+          "SecurityGroupCidrMonitor" : { "Ref": "SecurityGroupCidrMonitor" },
+          "DBRootPassword" : { "Ref": "DBRootPassword" }
+        }
+      }
+    }
+  },
+
+
+  "Outputs": {
+    "CustomerName": {
+      "Description": "The name of the Customer for the VPC",
+      "Value": { "Ref": "CustomerName" }
+    },
+
+    "VPCCIDR": {
+      "Description": "VPC CIDR",
+      "Value": { "Fn::Join": [ "", [ { "Ref": "VPCCIDR" }, ".0.0/16" ] ] }
+    },
+
+    "VPCId": {
+      "Description": "VPCId of the newly created VPC",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.VPCId" ] }
+    },
+
+    "SubnetPublicVarA00": {
+      "Description" : "Subnet ID",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarA00" ] }
+    },
+
+    "SubnetPublicVarC01": {
+      "Description" : "Subnet ID",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarC01" ] }
+    },
+
+    "SubnetPublicVarA02": {
+      "Description" : "Subnet ID",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarA02" ] }
+    },
+
+    "SubnetPublicVarC03": {
+      "Description" : "Subnet ID",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicVarC03" ] }
+    },
+
+    "SubnetPublicFixA08": {
+      "Description" : "Subnet ID",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicFixA08" ] }
+    },
+
+    "SubnetPublicFixC09": {
+      "Description" : "Subnet ID",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackVPC", "Outputs.SubnetPublicFixC09" ] }
+    },
+
+    "ELBPublicDNS": {
+      "Description": "ELBPublicDNS",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackEC2", "Outputs.ELBPublicDNS" ] }
+    },
+
+    "InstanceTypeWeb": {
+      "Description": "InstanceTypeWeb",
+      "Value": { "Ref": "InstanceTypeWeb" }
+    },
+
+    "InstanceTypeDB": {
+      "Description": "InstanceTypeDB",
+      "Value": { "Ref": "InstanceTypeDB" }
+    },
+
+    "IPAddressWebServer01": {
+      "Description": "EIP of WebServer01",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackEC2", "Outputs.IPAddressWebServer01" ] }
+    },
+
+    "IPAddressDBServer01": {
+      "Description": "EIP of DBServer01",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackEC2", "Outputs.IPAddressDBServer01" ] }
+    },
+
+    "WebServer01": {
+      "Description": "WebServer01",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackEC2", "Outputs.WebServer01" ] }
+    },
+
+    "DBServer01": {
+      "Description": "DBServer01",
+      "Value": { "Fn::GetAtt" : [ "CloudFormationStackEC2", "Outputs.DBServer01" ] }
+    },
+
+    "VolumeSizeWeb": {
+      "Description": "WebServer Contents Volume Size",
+      "Value": { "Ref": "VolumeSizeWeb" }
+    },
+
+    "VolumeSizeDB": {
+      "Description": "DBServer Contents Volume Size",
+      "Value": { "Ref": "VolumeSizeDB" }
+    },
+
+    "SecurityGroupCidrCustomer": {
+      "Description": "Gateway Address for Customer's location",
+      "Value": { "Ref": "SecurityGroupCidrCustomer" }
+    },
+
+    "SecurityGroupCidrOffice": {
+      "Description": "Gateway Address for Office's location",
+      "Value": { "Ref": "SecurityGroupCidrOffice" }
+    },
+
+    "SecurityGroupCidrMonitor": {
+      "Description": "Gateway Address for Monitoring Server",
+      "Value": { "Ref": "SecurityGroupCidrMonitor" }
+    }
+  }
+}
