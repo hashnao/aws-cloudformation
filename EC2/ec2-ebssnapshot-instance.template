@@ -1,0 +1,238 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "EC2 instanece to create EBS snapshot",
+  "Mappings": {
+  },
+
+
+  "Parameters": {
+    "InstanceType": {
+      "Description" : "SnapshotServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "t1.micro",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern" : "[\\x20-\\x7E]*",
+      "Default" : "bbt-default",
+      "ConstraintDescription" : "can contain only ASCII characters."
+    },
+
+    "SSHLocation" : {
+      "Description": "Cidr for SSH access",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    }
+  },
+
+
+  "Mappings": {
+    "AvailabilityZoneMap": {
+       "ap-northeast-1": { "AZa": "ap-northeast-1a", "AZb": "ap-northeast-1b", "AZc": "ap-northeast-1c" }
+    },
+
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "m3.xlarge"   : { "Arch" : "64" },
+      "m3.2xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64HVM" },
+      "cc2.8xlarge" : { "Arch" : "64HVM" },
+      "cg1.4xlarge" : { "Arch" : "64HVM" }
+    },
+    "AWSRegionArch2AMI" : {
+      "ap-northeast-1" : { "32" : "ami-0b13700a", "64" : "ami-0d13700c", "64HVM" : "NOT_YET_SUPPORTED" }
+    }
+  },
+
+
+  "Resources": {
+    "IPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "SnapshotServer" }
+      }
+    },
+
+    "SecurityGroupBase": {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Security Group Base",
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22", "CidrIp" : { "Ref" : "SSHLocation" }}
+        ]
+      }
+    },
+
+    "SnapshotServer": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "configSets" : {
+            "orderby" : [ "install_package" ]
+          },
+          "install_package" : {
+            "packages" : {
+              "yum" : {
+                "gcc" : [],
+                "gcc-c++" : [],
+                "make" : [],
+                "git" : [],
+                "libxml2-devel" : [],
+                "libxslt-devel" : [],
+                "libyaml-devel" : [],
+                "libffi-devel" : [],
+                "patch" : [],
+                "readline-devel" : [],
+                "openssl-devel" : [],
+                "autoconf" : [],
+                "automake" : [],
+                "libtool" : [],
+                "bison" : []
+              }
+            },
+            "sources" : {
+                "/home/ec2-user/bin" : "https://github.com/hashnao/aws/archive/master.zip"
+            },
+	    "files" : {
+              "/tmp/setup_ebssnapshot" : {
+                "content" : { "Fn::Join" : ["", [
+                  "#!/bin/bash -v\n",
+		  "chown -R ec2-user:ec2-user /home/ec2-user/bin\n",
+                  "find /home/ec2-user/bin/ -type f -name '*.sh' -exec chmod 755 {} \\;\n",
+                  "\n"
+                ]]},
+                "mode"  : "000755",
+                "owner" : "root",
+                "group" : "root"
+              },
+              "/tmp/install_ruby" : {
+                "content" : { "Fn::Join" : ["", [
+                  "#!/bin/bash -v\n",
+                  "date '+%x %X'\n",
+                  "\\curl -L https://get.rvm.io | bash -s stable\n",
+                  "source $HOME/.bashrc\n",
+                  "source $HOME/.bash_profile\n",
+                  "date '+%x %X'\n",
+                  "$HOME/.rvm/bin/rvm install 2.0.0\n",
+                  "source $HOME/.bash_profile\n",
+                  "date '+%x %X'\n",
+                  "rvm use 2.0.0 --default\n",
+                  "date '+%x %X'\n",
+                  "$HOME/.rvm/rubies/default/bin/gem i aws-sdk\n",
+                  "\n"
+                ]]},
+                "mode"  : "000755",
+                "owner" : "ec2-user",
+                "group" : "ec2-user"
+              }
+            },
+            "commands" : {
+              "setup_ebssnapshot" : {
+                "command" : "/tmp/setup_ebssnapshot> /tmp/setup_ebssnapshot.log 2>&1"
+              },
+              "install_ruby" : {
+                "command" : "su -l ec2-user -c '/tmp/install_ruby > /tmp/install_ruby.log 2>&1'"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId" : {
+          "Fn::FindInMap" : [
+            "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] }
+          ]
+        },
+        "InstanceType": { "Ref" : "InstanceType" },
+        "SecurityGroups" : [ {"Ref" : "SecurityGroupBase"} ],
+        "DisableApiTermination": "FALSE",
+        "KeyName": { "Ref": "KeyName" },
+        "Monitoring": "false",
+        "UserData" : {
+          "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -v\n",
+
+          "# Helper function\n",
+          "function error_exit\n",
+          "{\n",
+          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitHandle" }, "'\n",
+          "  exit 1\n",
+          "}\n",
+
+          "# Install libraries\n",
+          "  /opt/aws/bin/cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r SnapshotServer -c orderby",
+          "  --region ", { "Ref" : "AWS::Region" }, " || error_exit 'Failed to run cfn-init'\n",
+
+          "# Install libraries\n",
+          "yum -y groupinstall \"Development libraries\" \"Development tools\"\n",
+
+          "# Install jq\n",
+          "git clone https://github.com/stedolan/jq.git\n",
+          "cd jq\n",
+          "autoreconf -i && ./configure && make && make install\n",
+
+          "# All is well so signal success\n",
+          "  /opt/aws/bin/cfn-signal -e \"$?\" -r \"Cloud-Init setup completed\" '", { "Ref" : "WaitHandle" }, "'\n"
+          ] ] }
+        }
+      }
+    },
+
+    "WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    },
+
+    "WaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "SnapshotServer",
+      "Properties" : {
+        "Handle" : { "Ref" : "WaitHandle" },
+        "Timeout" : "600"
+      }
+    }
+  },
+
+
+  "Outputs": {
+    "InstanceType": {
+      "Description": "InstanceType",
+      "Value": { "Ref": "InstanceType" }
+    },
+
+    "IPAddress" : {
+      "Description": "IPAddress",
+      "Value": { "Ref": "SnapshotServer" }
+    },
+
+    "SnapshotServer": {
+      "Description": "SnapshotServer",
+      "Value": { "Ref": "SnapshotServer" }
+    },
+
+    "SSHLocation": {
+      "Description": "SSHLocation",
+      "Value": { "Ref": "SSHLocation" }
+    }
+  }
+}
+
