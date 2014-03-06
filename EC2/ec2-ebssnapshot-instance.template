@@ -187,9 +187,9 @@
           "yum -y groupinstall \"Development libraries\" \"Development tools\"\n",
 
           "# Install jq\n",
-          "git clone https://github.com/stedolan/jq.git\n",
-          "cd jq\n",
-          "autoreconf -i && ./configure && make && make install\n",
+          "wget -O- http://stedolan.github.io/jq/download/source/jq-1.3.tar.gz | tar zx\n",
+          "cd jq-1.3\n",
+          "./configure && make && make install\n",
 
           "# All is well so signal success\n",
           "  /opt/aws/bin/cfn-signal -e \"$?\" -r \"Cloud-Init setup completed\" '", { "Ref" : "WaitHandle" }, "'\n"
