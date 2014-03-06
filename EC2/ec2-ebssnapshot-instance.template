@@ -207,7 +207,7 @@
       "DependsOn" : "SnapshotServer",
       "Properties" : {
         "Handle" : { "Ref" : "WaitHandle" },
-        "Timeout" : "600"
+        "Timeout" : "1200"
       }
     }
   },
