@@ -31,7 +31,7 @@
 
     "SubnetPublicVarC01" : {
       "Description" : "Subnet ID",
-      "Type": "AWS::EC2::Subnet::Id "
+      "Type": "AWS::EC2::Subnet::Id"
     },
 
     "SubnetPublicVarA02" : {
@@ -46,7 +46,7 @@
 
     "SubnetPublicFixA08" : {
       "Description" : "Subnet ID",
-      "Type": "AWS::EC2::Subnet::Id",
+      "Type": "AWS::EC2::Subnet::Id"
     },
 
     "SubnetPublicFixC09" : {
